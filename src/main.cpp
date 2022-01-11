@@ -308,22 +308,23 @@ void MQTT_callback(char *topic, byte *message, unsigned int length)
 
 void MQTTsend()
 {
-  JSONVar mqtt_data;
+  JSONVar mqtt_data, actuators;
 
-  String mqtt_tag = Hostname + "/SENSOR";
+  String mqtt_tag = Hostname + "/STATUS";
   Serial.printf("%s\n", mqtt_tag.c_str());
 
   char property[8];
   strcpy(property, "Relais0");
 
-  mqtt_data["Time"] = My_time;
-  mqtt_data["RSSI"] = WiFi.RSSI();
-
   for (size_t relais = 0; relais <= 6; relais++)
   {
     property[6] = '0' + relais;
-    mqtt_data[(const char*)property] = !digitalRead(outputGPIOs[relais]) ? true : false;
+    actuators[(const char*)property] = !digitalRead(outputGPIOs[relais]) ? true : false;
   }
+  
+  mqtt_data["Time"] = My_time;
+  mqtt_data["RSSI"] = WiFi.RSSI();
+  mqtt_data["Actuators"] = actuators;
 
   String mqtt_string = JSON.stringify(mqtt_data);
 
