@@ -67,9 +67,9 @@ void initSPIFFS()
 {
   if (!SPIFFS.begin())
   {
-    log_i("An error has occurred while mounting SPIFFS");
+    Serial.println("An error has occurred while mounting SPIFFS");
   }
-  log_i("SPIFFS mounted successfully");
+  Serial.println("SPIFFS mounted successfully");
 }
 
 // Initialize WiFi
@@ -84,13 +84,13 @@ void initWiFi()
   WiFi.mode(WIFI_STA);
   WiFi.hostname(Hostname);
   WiFi.begin(ssid, password);
-  log_i("Connecting to WiFi ..");
+  Serial.println("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED)
   {
-    log_i(".");
+    Serial.println(".");
     delay(1000);
   }
-  log_i("%s", WiFi.localIP().toString().c_str());
+  Serial.printf("%s", WiFi.localIP().toString().c_str());
 }
 
 String getOutputStates()
@@ -176,7 +176,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
         return;
       }
       int relais = json["data"]["relais"];
-      if (relais < 0 || relais > 7)
+      if (relais < 0 || relais >= NUM_OUTPUTS)
       {
         Serial.println("Relais request contains invali relais number, ignoring");
         return;
@@ -184,7 +184,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
       
       digitalWrite(outputGPIOs[relais], !digitalRead(outputGPIOs[relais]));
       notifyClients(getOutputStates());
-      log_i("switch Relais");
+      Serial.println("switch Relais");
 
       if (relayReset[relais] == "Y")
       {
@@ -202,10 +202,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   switch (type)
   {
   case WS_EVT_CONNECT:
-    log_i("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+    Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     break;
   case WS_EVT_DISCONNECT:
-    log_i("WebSocket client #%u disconnected\n", client->id());
+    Serial.printf("WebSocket client #%u disconnected\n", client->id());
     break;
   case WS_EVT_DATA:
     handleWebSocketMessage(arg, data, len);
@@ -245,7 +245,7 @@ void reconnect_wifi()
 void reconnect_mqtt()
 {
   String willTopic = Hostname + "/LWT";
-  String cmdTopic = Hostname + "/CMD";
+  String cmdTopic = Hostname + "/CMD/+";
 #if defined CREDENTIALS_MQTT_USER && defined CREDENTIALS_MQTT_PASSWORD
   if (client.connect(Hostname.c_str(), CREDENTIALS_MQTT_USER, CREDENTIALS_MQTT_PASSWORD, willTopic.c_str(), 0, true, "Offline"))
 #else
@@ -267,36 +267,43 @@ void reconnect_mqtt()
 void MQTT_callback(char *topic, byte *message, unsigned int length)
 {
 
-  log_i("%s", "Message arrived on topic: ");
-  log_i("%s\n", topic);
-  log_i("%s", "Data : ");
+  Serial.printf("%s", "Message arrived on topic: ");
+  Serial.printf("%s\n", topic);
+  Serial.printf("%s", "Data : ");
 
   String MQTT_message;
   for (int i = 0; i < length; i++)
   {
     MQTT_message += (char)message[i];
   }
-  log_i("%s\n", MQTT_message);
+  Serial.printf("%s\n", MQTT_message.c_str());
 
   String relaisTopic = Hostname + "/CMD/Relais";
   String strTopic = String(topic);
 
   if (!strTopic.startsWith(relaisTopic) || strTopic.length() != relaisTopic.length() + 1)
   {
+    Serial.printf("Invalid topic %d, %d", strTopic.length(), relaisTopic.length());
     return;
   }
   int relais = strTopic[strTopic.length() - 1] - '0';
+  if(relais < 0 || relais >= NUM_OUTPUTS) {
+    Serial.printf("Invalid relais %d", relais);
+    return;
+  }
 
-  if (MQTT_message == "on")
+  if (MQTT_message == "true")
   {
     digitalWrite(outputGPIOs[relais], LOW);
   }
-  else if (MQTT_message == "off")
+  else if (MQTT_message == "false")
   {
     digitalWrite(outputGPIOs[relais], HIGH);
   }
 
   notifyClients(getOutputStates());
+
+  Mqtt_lastSend = now - MQTT_INTERVAL - 10; // --> MQTT send !!
 }
 
 void MQTTsend()
@@ -304,7 +311,7 @@ void MQTTsend()
   JSONVar mqtt_data;
 
   String mqtt_tag = Hostname + "/SENSOR";
-  log_i("%s\n", mqtt_tag.c_str());
+  Serial.printf("%s\n", mqtt_tag.c_str());
 
   char property[8];
   strcpy(property, "Relais0");
@@ -320,7 +327,7 @@ void MQTTsend()
 
   String mqtt_string = JSON.stringify(mqtt_data);
 
-  log_i("%s\n", mqtt_string.c_str());
+  Serial.printf("%s\n", mqtt_string.c_str());
 
   client.publish(mqtt_tag.c_str(), mqtt_string.c_str());
 
@@ -332,7 +339,7 @@ void setup()
 
   SERIALINIT
 
-  log_i("init GPIOs\n");
+  Serial.println("init GPIOs\n");
   pinMode(GPIO_LED, OUTPUT);
   digitalWrite(GPIO_LED, LOW);
 
@@ -347,7 +354,7 @@ void setup()
   initWiFi();
   initWebSocket();
 
-  log_i("setup MQTT\n");
+  Serial.println("setup MQTT\n");
   client.setServer(CREDENTIALS_MQTT_BROKER, 1883);
   client.setCallback(MQTT_callback);
 
@@ -432,7 +439,7 @@ void loop()
     {
       lastReconnectAttempt = now; // prevents mqtt reconnect running also
       // Attempt to reconnect
-      log_i("WiFi reconnect");
+      Serial.println("WiFi reconnect");
       reconnect_wifi();
     }
   }
@@ -446,7 +453,7 @@ void loop()
       {
         lastReconnectAttempt = now;
         // Attempt to reconnect
-        log_i("MQTT reconnect");
+        Serial.println("MQTT reconnect");
         reconnect_mqtt();
       }
     }

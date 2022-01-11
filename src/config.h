@@ -8,4 +8,4 @@
 #define LED_BLINK_INTERVAL 500
 #define RELAY_RESET_INTERVAL 5000
 
-#define GPIO_LED 2
+#define GPIO_LED 1
