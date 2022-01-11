@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="topnav">
-    <h1>ESP WEB SERVER - Steckerleiste</h1>
+    <h1>ESP WEB SERVER - Relaisleiste</h1>
   </div>
   <div class="content">
     <div class="card-grid">
@@ -17,36 +17,32 @@
             <p class ="card-text"><span id="0h"></span></p>
         </div>
         <div class="card">             
-          <p class="card-title">MQTT last will topic</p>
+          <p class="card-title">WiFi RSSI</p>
           <p class ="card-text"><span id="1h"></span></p>
         </div>
         <div class="card">             
-          <p class="card-title">WiFi RSSI</p>
-          <p class ="card-text"><span id="2h"></span></p>
-        </div>
-        <div class="card">             
             <p class="card-title">Mqtt_sendInterval</p>
-            <p class ="card-text"><span id="3h"></span></p>
+            <p class ="card-text"><span id="2h"></span></p>
         </div>
         <div class="card">             
             <p class="card-title">Unix timestamp</p>
-            <p class ="card-text"><span id="4h"></span></p>
+            <p class ="card-text"><span id="3h"></span></p>
         </div>
         <div class="card">
             <p class="card-title">Number of Re-connects</p>
-            <p class ="card-text"><span id="5h"></span></p>
+            <p class ="card-text"><span id="4h"></span></p>
         </div>
         <div class="card">
             <p class="card-title"> </p>
-            <p class ="card-text"><span id="6h"></span></p>
+            <p class ="card-text"><span id="5h"></span></p>
         </div>
         <div class="card">
           <p class="card-title"> Reboot</p>
-          <p class ="card-text"><span id="7h"></span></p>
+          <p class ="card-text"><span id="6h"></span></p>
           <button onclick="myFunction('7')">OK</button>
         </div>
         <div class="card">             
-            <p class="card-title">Relais 1</p>
+            <p class="card-title">Relais 0</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="0">
                 <span class="slider"></span>
@@ -54,7 +50,7 @@
             <p class ="state">State: <span id="0s"></span></p>
         </div>
         <div class="card">
-            <p class="card-title">Relais 2</p>
+            <p class="card-title">Relais 1</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="1">
                 <span class="slider"></span>
@@ -62,7 +58,7 @@
             <p class ="state">State: <span id="1s"></span></p>
         </div>
         <div class="card">
-            <p class="card-title">Relais 3</p>
+            <p class="card-title">Relais 2</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="2">
                 <span class="slider"></span>
@@ -70,36 +66,36 @@
             <p class ="state">State: <span id="2s"></span></p>
         </div>
         <div class="card">
-            <p class="card-title">Relais 4</p>
+            <p class="card-title">Relais 3</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="3">
                 <span class="slider"></span>
             </label>
-            <p class="state">reset only: <span id="3s"></span></p>
+            <p class="state">State: <span id="3s"></span></p>
         </div>
         <div class="card">             
-            <p class="card-title">Relais 5</p>
+            <p class="card-title">Relais 4</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="4">
                 <span class="slider"></span>
             </label>
-            <p class ="state">reset only: <span id="4s"></span></p>
+            <p class ="state">State: <span id="4s"></span></p>
         </div>
         <div class="card">
-            <p class="card-title">Relais 6</p>
+            <p class="card-title">Relais 5</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="5">
                 <span class="slider"></span>
             </label>
-            <p class ="state">reset only: <span id="5s"></span></p>
+            <p class ="state">State: <span id="5s"></span></p>
         </div>
         <div class="card">
-            <p class="card-title">Relais 7</p>
+            <p class="card-title">Relais 6</p>
             <label class="switch">
                 <input type="checkbox" onchange="toggleCheckbox(this)" id="6">
                 <span class="slider"></span>
             </label>
-            <p class ="state">reset only: <span id="6s"></span></p>
+            <p class ="state">State: <span id="6s"></span></p>
         </div>
     </div>
 </div>
