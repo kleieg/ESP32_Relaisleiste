@@ -1,9 +1,22 @@
 // Import required libraries
+#if defined(ESP8266)
+#include "LittleFS.h"
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+#include <ESPAsyncTCP.h>
+#define FileSytem LittleFS
+#elif defined(ESP32)
 #include <WiFi.h>
-#include <PubSubClient.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
+#include <AsyncTCP.h>
+#define FileSytem SPIFFS
+#else
+#error "Unsupported board"
+#endif
+
+#include <PubSubClient.h>
+#include <ESPAsyncWebServer.h>
+
 #include <NTPClient.h>
 #include <Arduino_JSON.h>
 #include <AsyncElegantOTA.h>
@@ -49,27 +62,16 @@ AsyncWebServer server(80);
 // Create a WebSocket object
 AsyncWebSocket ws("/ws");
 
-// Set number of outputs
-#define NUM_OUTPUTS 7 // nur 7 ansprechbare Relais !!!
-
-// Assign each GPIO to an output
-int outputGPIOs[NUM_OUTPUTS] = {16, 17, 18, 19, 21, 22, 23};
-
-// Assign relay details
-String relayReset[NUM_OUTPUTS] = {"N", "N", "N", "N", "N", "N", "N"};
-int relayResetStatus[NUM_OUTPUTS] = {0, 0, 0, 0, 0, 0, 0};
-int relayResetTimer[NUM_OUTPUTS] = {0, 0, 0, 0, 0, 0, 0};
-
 // end of definitions -----------------------------------------------------
 
-// Initialize SPIFFS
-void initSPIFFS()
+// Initialize file sytem
+void initFS()
 {
-  if (!SPIFFS.begin())
+  if (!FileSytem.begin())
   {
-    Serial.println("An error has occurred while mounting SPIFFS");
+    Serial.println("An error has occurred while mounting file sytem");
   }
-  Serial.println("SPIFFS mounted successfully");
+  Serial.println("File system mounted successfully");
 }
 
 // Initialize WiFi
@@ -97,7 +99,7 @@ String getOutputStates()
 {
   JSONVar myArray;
 
-  myArray["cards"][0]["c_text"] = String(HOSTNAME) + "   /   " + String(VERSION);
+  myArray["cards"][0]["c_text"] = String(Hostname) + "   /   " + String(VERSION);
   myArray["cards"][1]["c_text"] = String(WiFi.RSSI());
   myArray["cards"][2]["c_text"] = String(MQTT_INTERVAL) + "ms";
   myArray["cards"][3]["c_text"] = String(My_time);
@@ -335,6 +337,15 @@ void MQTTsend()
   notifyClients(getOutputStates());
 }
 
+String templateProcessor(const String& var)
+{
+  if(var == "NUM_OUTPUTS")
+  {
+    return String(NUM_OUTPUTS);
+  }
+  return "";
+}
+
 void setup()
 {
 
@@ -351,7 +362,7 @@ void setup()
     digitalWrite(outputGPIOs[i], HIGH);
   }
 
-  initSPIFFS();
+  initFS();
   initWiFi();
   initWebSocket();
 
@@ -361,12 +372,13 @@ void setup()
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/index.html", "text/html", false); });
+            { request->send(FileSytem, "/index.html", "text/html", false); });
 
-  AsyncStaticWebHandler &handler = server.serveStatic("/", SPIFFS, "/");
+  AsyncStaticWebHandler &handler = server.serveStatic("/", FileSytem, "/");
   #if defined CREDENTIALS_WEB_USER && defined CREDENTIALS_WEB_PASSWORD
     handler.setAuthentication(CREDENTIALS_WEB_USER, CREDENTIALS_WEB_PASSWORD);
   #endif
+  handler.setTemplateProcessor(&templateProcessor);
 
 
   // init NTP

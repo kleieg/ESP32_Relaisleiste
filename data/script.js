@@ -1,6 +1,12 @@
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
+var NUM_OUTPUTS = +'%NUM_OUTPUTS%'; // use string & casting to disable linter warnings in IDE
 window.addEventListener('load', onLoad);
+
+for(let i = 0; i < NUM_OUTPUTS; i++) {
+    const elS = document.getElementById(i + "s");
+    elS.closest('.card').style.display = 'block';
+}
 
 function onLoad(event) {
     initWebSocket();
@@ -37,13 +43,14 @@ function onMessage(event) {
         var state = myObj.gpios[i].state;
         console.log(output);
         console.log(state);
+        const elS = document.getElementById(output + "s");
         if (state == "1") {
             document.getElementById(output).checked = true;
-            document.getElementById(output + "s").innerHTML = "ON";
+            elS.innerHTML = "ON";
         }
         else {
             document.getElementById(output).checked = false;
-            document.getElementById(output + "s").innerHTML = "OFF";
+            elS.innerHTML = "OFF";
         }
     }
     console.log(event.data);
