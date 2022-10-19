@@ -14,7 +14,7 @@
 #error "Unsupported board"
 #endif
 
-#include <PubSubClient.h>
+#include <MQTT.h>
 #include <ESPAsyncWebServer.h>
 
 #include <NTPClient.h>
@@ -41,7 +41,7 @@ WiFiClient myClient;
 long lastReconnectAttempt = 0;
 
 // for MQTT
-PubSubClient client(myClient);
+MQTTClient client(256);
 long Mqtt_lastSend = 0;
 int Mqtt_reconnect = 0;
 
@@ -231,12 +231,16 @@ void initWebSocket()
 void reconnect_wifi()
 {
   Serial.printf("%s\n", "WiFi try reconnect");
-  WiFi.begin();
+
+  lastReconnectAttempt = 0;
+  WiFi_reconnect = WiFi_reconnect + 1;
+  
+  WiFi.disconnect();
+  WiFi.reconnect();
+  
   delay(500);
   if (WiFi.status() == WL_CONNECTED)
   {
-    lastReconnectAttempt = 0;
-    WiFi_reconnect = WiFi_reconnect + 1;
     // Once connected, publish an announcement...
     Serial.printf("%s\n", "WiFi reconnected");
   }
@@ -248,38 +252,34 @@ void reconnect_mqtt()
 {
   String willTopic = Hostname + "/LWT";
   String cmdTopic = Hostname + "/CMD/+";
+
+  Serial.printf("%s\n", "MQTT try reconnect");
+
+  lastReconnectAttempt = 0;
+  Mqtt_reconnect = Mqtt_reconnect + 1;
+  
 #if defined CREDENTIALS_MQTT_USER && defined CREDENTIALS_MQTT_PASSWORD
-  if (client.connect(Hostname.c_str(), CREDENTIALS_MQTT_USER, CREDENTIALS_MQTT_PASSWORD, willTopic.c_str(), 0, true, "Offline"))
+  if (client.connect(Hostname.c_str(), CREDENTIALS_MQTT_USER, CREDENTIALS_MQTT_PASSWORD))
 #else
-  if (client.connect(Hostname.c_str(), willTopic.c_str(), 0, true, "Offline"))
+  if (client.connect(Hostname.c_str()))
 #endif
   {
-    lastReconnectAttempt = 0;
-    Serial.printf("%s\n", "connected");
+    Serial.printf("%s\n", "MQTT connected");
 
-    client.publish(willTopic.c_str(), "Online", true);
-
+    client.publish(willTopic.c_str(), "Online", true, 0);
+  
     client.subscribe(cmdTopic.c_str());
-
-    Mqtt_reconnect = Mqtt_reconnect + 1;
+  } else {
+    Serial.printf("Failed to connect to broker; error: %d\n", client.lastError());
   }
 }
 
 // receive MQTT messages
-void MQTT_callback(char *topic, byte *message, unsigned int length)
+void MQTT_callback(String topic, String message)
 {
 
-  Serial.printf("%s", "Message arrived on topic: ");
-  Serial.printf("%s\n", topic);
-  Serial.printf("%s", "Data : ");
-
-  String MQTT_message;
-  for (int i = 0; i < length; i++)
-  {
-    MQTT_message += (char)message[i];
-  }
-  Serial.printf("%s\n", MQTT_message.c_str());
-
+  Serial.printf("Message arrived on topic: %s; Data: %s", topic, message);
+ 
   String relaisTopic = Hostname + "/CMD/Relais";
   String strTopic = String(topic);
 
@@ -294,11 +294,11 @@ void MQTT_callback(char *topic, byte *message, unsigned int length)
     return;
   }
 
-  if (MQTT_message == "true")
+  if (message == "true")
   {
     digitalWrite(outputGPIOs[relais], LOW);
   }
-  else if (MQTT_message == "false")
+  else if (message == "false")
   {
     digitalWrite(outputGPIOs[relais], HIGH);
   }
@@ -306,6 +306,18 @@ void MQTT_callback(char *topic, byte *message, unsigned int length)
   notifyClients(getOutputStates());
 
   Mqtt_lastSend = now - MQTT_INTERVAL - 10; // --> MQTT send !!
+}
+
+// initialize MQTT
+void initMQTT() {
+  String willTopic = Hostname + "/LWT";
+  
+  Serial.printf("setup MQTT\n");
+  
+  client.begin(myClient);
+  client.setHost(CREDENTIALS_MQTT_BROKER, 1883);
+  client.onMessage(MQTT_callback);
+  client.setWill(willTopic.c_str(), "Offline", true, 0);
 }
 
 void MQTTsend()
@@ -365,10 +377,7 @@ void setup()
   initFS();
   initWiFi();
   initWebSocket();
-
-  Serial.println("setup MQTT\n");
-  client.setServer(CREDENTIALS_MQTT_BROKER, 1883);
-  client.setCallback(MQTT_callback);
+  initMQTT();
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -477,7 +486,7 @@ void loop()
       client.loop();
 
       // send data to MQTT broker
-      if (now - Mqtt_lastSend > MQTT_INTERVAL)
+      if (now - Mqtt_lastSend > MQTT_INTERVAL && now - lastReconnectAttempt > PUBLISH_DELAY)
       {
         Mqtt_lastSend = now;
         MQTTsend();
