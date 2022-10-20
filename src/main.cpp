@@ -236,7 +236,7 @@ void reconnect_wifi()
   
   WiFi.reconnect();
   delay(500);
-  
+
   if (WiFi.status() == WL_CONNECTED)
   {
     // Once connected, publish an announcement...
@@ -275,7 +275,7 @@ void reconnect_mqtt()
 void MQTT_callback(String topic, String message)
 {
 
-  Serial.printf("Message arrived on topic: %s; Data: %s", topic, message);
+  Serial.printf("Message arrived on topic: %s; Data: %s\n", topic.c_str(), message.c_str());
  
   String relaisTopic = Hostname + "/CMD/Relais";
   String strTopic = String(topic);
