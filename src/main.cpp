@@ -24,12 +24,7 @@
 #include "WLAN_Credentials.h"
 #include "config.h"
 
-// LED blink nicht im log-modus !!!
-#if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO
-#define SERIALINIT Serial.begin(115200);
-#else
-#define SERIALINIT
-#endif
+#include "log.h"
 
 // will be computed as "<HOSTNAME>_<MAC-ADDRESS>"
 String Hostname;
@@ -69,9 +64,9 @@ void initFS()
 {
   if (!FileSytem.begin())
   {
-    Serial.println("An error has occurred while mounting file sytem");
+    LOG_PRINTLN("An error has occurred while mounting file sytem");
   }
-  Serial.println("File system mounted successfully");
+  LOG_PRINTLN("File system mounted successfully");
 }
 
 // Initialize WiFi
@@ -86,13 +81,13 @@ void initWiFi()
   WiFi.hostname(Hostname);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  Serial.println("Connecting to WiFi ..");
+  LOG_PRINTLN("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED)
   {
-    Serial.println(".");
+    LOG_PRINTLN(".");
     delay(1000);
   }
-  Serial.printf("%s", WiFi.localIP().toString().c_str());
+  LOG_PRINTF("%s", WiFi.localIP().toString().c_str());
 }
 
 String getOutputStates()
@@ -137,18 +132,18 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     // according to AsyncWebServer documentation this is ok
     data[len] = 0;
 
-    Serial.println("Data received: ");
-    Serial.printf("%s\n", data);
+    LOG_PRINTLN("Data received: ");
+    LOG_PRINTF("%s\n", data);
 
     JSONVar json = JSON.parse((const char *)data);
     if (json == nullptr)
     {
-      Serial.println("Request is not valid json, ignoring");
+      LOG_PRINTLN("Request is not valid json, ignoring");
       return;
     }
     if (!json.hasOwnProperty("action"))
     {
-      Serial.println("Request is not valid json, ignoring");
+      LOG_PRINTLN("Request is not valid json, ignoring");
       return;
     }
     if (!strcmp(json["action"], "states"))
@@ -157,36 +152,36 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     }
     else if (!strcmp(json["action"], "reboot"))
     {
-      Serial.println("Reset..");
+      LOG_PRINTLN("Reset..");
       ESP.restart();
     }
     else if (!strcmp(json["action"], "relais"))
     {
       if (!json.hasOwnProperty("data"))
       {
-        Serial.println("Relais request is missing data, ignoring");
+        LOG_PRINTLN("Relais request is missing data, ignoring");
         return;
       }
       if (!json["data"].hasOwnProperty("relais"))
       {
-        Serial.println("Relais request is missing relais number, ignoring");
+        LOG_PRINTLN("Relais request is missing relais number, ignoring");
         return;
       }
       if (JSONVar::typeof_(json["data"]["relais"]) != "number")
       {
-        Serial.println("Relais request contains invali relais number, ignoring");
+        LOG_PRINTLN("Relais request contains invali relais number, ignoring");
         return;
       }
       int relais = json["data"]["relais"];
       if (relais < 0 || relais >= NUM_OUTPUTS)
       {
-        Serial.println("Relais request contains invali relais number, ignoring");
+        LOG_PRINTLN("Relais request contains invali relais number, ignoring");
         return;
       }
       
       digitalWrite(outputGPIOs[relais], !digitalRead(outputGPIOs[relais]));
       notifyClients(getOutputStates());
-      Serial.println("switch Relais");
+      LOG_PRINTLN("switch Relais");
 
       if (relayReset[relais] == "Y")
       {
@@ -204,10 +199,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   switch (type)
   {
   case WS_EVT_CONNECT:
-    Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+    LOG_PRINTF("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     break;
   case WS_EVT_DISCONNECT:
-    Serial.printf("WebSocket client #%u disconnected\n", client->id());
+    LOG_PRINTF("WebSocket client #%u disconnected\n", client->id());
     break;
   case WS_EVT_DATA:
     handleWebSocketMessage(arg, data, len);
@@ -230,7 +225,7 @@ void initWebSocket()
 // reconnect to WiFi
 void reconnect_wifi()
 {
-  Serial.printf("%s\n", "WiFi try reconnect");
+  LOG_PRINTLN("WiFi try reconnect");
 
   WiFi_reconnect = WiFi_reconnect + 1;
   
@@ -240,7 +235,7 @@ void reconnect_wifi()
   if (WiFi.status() == WL_CONNECTED)
   {
     // Once connected, publish an announcement...
-    Serial.printf("%s\n", "WiFi reconnected");
+    LOG_PRINTLN("WiFi reconnected");
   }
 }
 
@@ -251,7 +246,7 @@ void reconnect_mqtt()
   String willTopic = Hostname + "/LWT";
   String cmdTopic = Hostname + "/CMD/+";
 
-  Serial.printf("%s\n", "MQTT try reconnect");
+  LOG_PRINTLN("MQTT try reconnect");
 
   Mqtt_reconnect = Mqtt_reconnect + 1;
   
@@ -261,13 +256,13 @@ void reconnect_mqtt()
   if (client.connect(Hostname.c_str()))
 #endif
   {
-    Serial.printf("%s\n", "MQTT connected");
+    LOG_PRINTLN("MQTT connected");
 
     client.publish(willTopic.c_str(), "Online", true, 0);
   
     client.subscribe(cmdTopic.c_str());
   } else {
-    Serial.printf("Failed to connect to broker; error: %d\n", client.lastError());
+    LOG_PRINTF("Failed to connect to broker; error: %d\n", client.lastError());
   }
 }
 
@@ -275,19 +270,19 @@ void reconnect_mqtt()
 void MQTT_callback(String topic, String message)
 {
 
-  Serial.printf("Message arrived on topic: %s; Data: %s\n", topic.c_str(), message.c_str());
+  LOG_PRINTF("Message arrived on topic: %s; Data: %s\n", topic.c_str(), message.c_str());
  
   String relaisTopic = Hostname + "/CMD/Relais";
   String strTopic = String(topic);
 
   if (!strTopic.startsWith(relaisTopic) || strTopic.length() != relaisTopic.length() + 1)
   {
-    Serial.printf("Invalid topic %d, %d", strTopic.length(), relaisTopic.length());
+    LOG_PRINTF("Invalid topic %d, %d", strTopic.length(), relaisTopic.length());
     return;
   }
   int relais = strTopic[strTopic.length() - 1] - '0';
   if(relais < 0 || relais >= NUM_OUTPUTS) {
-    Serial.printf("Invalid relais %d", relais);
+    LOG_PRINTF("Invalid relais %d", relais);
     return;
   }
 
@@ -309,7 +304,7 @@ void MQTT_callback(String topic, String message)
 void initMQTT() {
   String willTopic = Hostname + "/LWT";
   
-  Serial.printf("setup MQTT\n");
+  LOG_PRINTLN("setup MQTT\n");
   
   client.begin(myClient);
   client.setHost(CREDENTIALS_MQTT_BROKER, 1883);
@@ -322,7 +317,7 @@ void MQTTsend()
   JSONVar mqtt_data, actuators;
 
   String mqtt_tag = Hostname + "/STATUS";
-  Serial.printf("%s\n", mqtt_tag.c_str());
+  LOG_PRINTLN(mqtt_tag.c_str());
 
   char property[8];
   strcpy(property, "Relais0");
@@ -339,7 +334,7 @@ void MQTTsend()
 
   String mqtt_string = JSON.stringify(mqtt_data);
 
-  Serial.printf("%s\n", mqtt_string.c_str());
+  LOG_PRINTLN(mqtt_string.c_str());
 
   client.publish(mqtt_tag.c_str(), mqtt_string.c_str());
 
@@ -358,9 +353,9 @@ String templateProcessor(const String& var)
 void setup()
 {
 
-  SERIALINIT
+  LOG_INIT();
 
-  Serial.println("init GPIOs\n");
+  LOG_PRINTLN("init GPIOs\n");
   pinMode(GPIO_LED, OUTPUT);
   digitalWrite(GPIO_LED, LOW);
 
@@ -388,7 +383,7 @@ void setup()
 
 
   // init NTP
-  Serial.printf("init NTP\n");
+  LOG_PRINTLN("init NTP\n");
   timeClient.begin();
   timeClient.setTimeOffset(0);
 
@@ -458,7 +453,7 @@ void loop()
     {
       lastReconnectAttempt = now; // prevents mqtt reconnect running also
       // Attempt to reconnect
-      Serial.println("WiFi reconnect");
+      LOG_PRINTLN("WiFi reconnect");
       reconnect_wifi();
     }
   }
@@ -472,7 +467,7 @@ void loop()
       {
         lastReconnectAttempt = now;
         // Attempt to reconnect
-        Serial.println("MQTT reconnect");
+        LOG_PRINTLN("MQTT reconnect");
         reconnect_mqtt();
       }
     }
