@@ -19,7 +19,7 @@
 
 #include <NTPClient.h>
 #include <Arduino_JSON.h>
-#include <AsyncElegantOTA.h>
+#include <ElegantOTA.h>
 
 #include "WLAN_Credentials.h"
 #include "config.h"
@@ -83,8 +83,8 @@ void initWiFi()
   Hostname += WiFi.macAddress();
   Hostname.replace(":", "");
 
-  WiFi.mode(WIFI_STA);
   WiFi.hostname(Hostname);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED)
@@ -393,7 +393,7 @@ void setup()
   timeClient.setTimeOffset(0);
 
   // Start ElegantOTA
-  AsyncElegantOTA.begin(&server);
+  ElegantOTA.begin(&server);
 
   // Start server
   server.begin();
